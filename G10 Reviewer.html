@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geography Review Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #334155;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .card {
+            background-color: #f1f5f9;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+        .btn-secondary {
+            background-color: #cbd5e1;
+            color: #475569;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(203, 213, 225, 0.4);
+        }
+        .connect-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .connect-item {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            text-align: center;
+        }
+        .connect-item.selected {
+            background-color: #bfdbfe;
+            border-color: #60a5fa;
+        }
+        .connect-item.correct {
+            background-color: #d1fae5;
+            border-color: #34d399;
+        }
+        .connect-item.incorrect {
+            background-color: #fee2e2;
+            border-color: #f87171;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 100;
+            text-align: center;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 90;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">Geography Review Game</h1>
+        <div id="welcome-screen" class="text-center p-8 bg-blue-50 rounded-lg shadow-inner">
+            <h2 class="text-2xl font-semibold mb-4">Welcome to the Geography Finals Review!</h2>
+            <p class="text-gray-600 mb-6">Test your knowledge with different question types to get ready for your exam.</p>
+            <button id="start-game-btn" class="btn btn-primary">Start Game</button>
+        </div>
+
+        <div id="question-screen" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <span id="score" class="text-lg font-semibold text-gray-700">Score: 0</span>
+                <span id="question-counter" class="text-lg font-semibold text-gray-700">Question: 1/20</span>
+            </div>
+            <div id="question-card" class="card">
+                <div id="question-content" class="text-lg text-gray-800 font-medium"></div>
+                <div id="options-container" class="flex flex-col gap-2"></div>
+                <div id="flashcard-answer" class="hidden text-xl text-center font-bold mt-4 text-blue-600"></div>
+                <div id="connect-dots-container" class="hidden connect-list"></div>
+                <div id="flashcard-buttons" class="hidden flex justify-center gap-4 mt-4">
+                    <button id="show-answer-btn" class="btn btn-primary w-full md:w-auto">Show Answer</button>
+                    <button id="next-flashcard-btn" class="btn btn-secondary w-full md:w-auto hidden">Next Question</button>
+                </div>
+            </div>
+            <div id="feedback" class="mt-4 text-center font-semibold"></div>
+        </div>
+
+        <div id="end-screen" class="hidden text-center p-8 bg-green-50 rounded-lg shadow-inner">
+            <h2 class="text-2xl font-semibold text-green-700 mb-4">Congratulations!</h2>
+            <p id="final-score" class="text-xl text-gray-700 mb-6"></p>
+            <button id="restart-game-btn" class="btn btn-primary">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            // Hard questions - Flashcards
+            {
+                type: 'flashcard',
+                difficulty: 'hard',
+                question: 'How and why do temperatures change between day and night in a desert?',
+                answer: 'During the day, deserts have high temperatures because there are few clouds to block incoming solar radiation. At night, temperatures drop dramatically because there are no clouds to trap the heat, and it quickly escapes back into the atmosphere.'
+            },
+            {
+                type: 'flashcard',
+                difficulty: 'hard',
+                question: 'Explain why tropical deserts are dry.',
+                answer: 'Tropical deserts are dry due to high pressure and descending air. This descending air is heated, which prevents condensation and cloud formation. This results in very little to no rainfall in these areas.'
+            },
+            {
+                type: 'flashcard',
+                difficulty: 'hard',
+                question: 'Explain how natural vegetation is able to survive in a desert.',
+                answer: 'Natural vegetation in a desert has adapted to survive with limited water. Plants may have sparse, scattered vegetation, long roots to reach groundwater, thick stems to store water, or waxy leaves to reduce water loss. Some plants also have very short growing seasons, allowing them to complete their life cycle quickly after a rare rainfall.'
+            },
+            {
+                type: 'flashcard',
+                difficulty: 'hard',
+                question: 'The equatorial climate is another climatic zone. For a named example you have studied, describe the ecosystem of an area with an equatorial climate.',
+                answer: 'The rainforest ecosystem of Ecuador has a very high biodiversity, with over 25,000 species of plants and 1,600 bird species. The dense canopy is home to arboreal animals like monkeys and sloths. The ground level has broad-leaved evergreen trees and a rich layer of organic matter on the forest floor, which provides nutrients for the plants.'
+            },
+            {
+                type: 'flashcard',
+                difficulty: 'hard',
+                question: 'Describe two features of the area of hot desert shown in Photograph A.',
+                answer: 'Features of the hot desert include sparse/scattered vegetation, dry valleys, steeply sloping sides, bare rock, and deposits of gravels, sand, etc.'
+            },
+
+            // Medium questions - Connect the Dots
+            {
+                type: 'connect',
+                difficulty: 'medium',
+                question: 'Connect the components of a food web to their trophic level.',
+                pairs: {
+                    'Python': 'Secondary/Tertiary Consumer',
+                    'Fungi': 'Decomposer',
+                    'Chimpanzee': 'Primary/Secondary Consumer',
+                    'Banana Tree': 'Producer'
+                }
+            },
+            {
+                type: 'connect',
+                difficulty: 'medium',
+                question: 'Connect the type of plant to its description.',
+                pairs: {
+                    'Epiphytes': 'Plants that grow on other trees',
+                    'Buttress roots': 'Roots that support tall trees',
+                    'Lianas and climbers': 'Woody vines that climb trees',
+                    'Drip-tip leaves': 'Leaves that allow water to run off quickly'
+                }
+            },
+            {
+                type: 'connect',
+                difficulty: 'medium',
+                question: 'Connect the climate term to its definition.',
+                pairs: {
+                    'High pressure': 'Descending air, no clouds',
+                    'Inter-tropical Convergence Zone (ITCZ)': 'Low pressure, rising air, rain',
+                    'Evapotranspiration': 'Water loss from plants',
+                    'Annual Temperature Range': 'Difference between highest and lowest monthly temperatures'
+                }
+            },
+            {
+                type: 'connect',
+                difficulty: 'medium',
+                question: 'Connect the food chain term to its correct definition.',
+                pairs: {
+                    'Producers': 'Capture the sun\'s energy',
+                    'Consumers': 'Feed on producers or other consumers',
+                    'Decomposers': 'Break down dead plants and animals',
+                    'Trophic Levels': 'Levels of energy transfer'
+                }
+            },
+            {
+                type: 'connect',
+                difficulty: 'medium',
+                question: 'Connect the term to its characteristic in the desert.',
+                pairs: {
+                    'High pressure': 'Descending air',
+                    'Precipitation': 'Very low',
+                    'Temperature': 'High during day, low at night',
+                    'Cloud Cover': 'Very few clouds'
+                }
+            },
+            {
+                type: 'connect',
+                difficulty: 'medium',
+                question: 'Connect the characteristic to the Ecuador rainforest.',
+                pairs: {
+                    'High biodiversity': 'Over 25,000 plant species',
+                    'Canopy dwellers': 'Monkeys and sloths',
+                    'Ground level plants': 'Broad-leaved evergreen trees',
+                    'Soil': 'Rich organic matter'
+                }
+            },
+
+            // Easy questions - Multiple Choice
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What is the approximate average monthly temperature in January for the Coachella Valley?',
+                options: ['10°C', '20°C', '30°C', '40°C'],
+                answer: '10°C'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'According to the graph, what is the approximate average monthly temperature in June for the Coachella Valley?',
+                options: ['15°C', '25°C', '32°C', '40°C'],
+                answer: '32°C'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What is the approximate total annual precipitation for the Coachella Valley?',
+                options: ['30 mm', '100 mm', '150 mm', '200 mm'],
+                answer: '150 mm'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What type of roots do tall rainforest trees have to support them?',
+                options: ['Taproots', 'Shallow roots', 'Buttress roots', 'Aerial roots'],
+                answer: 'Buttress roots'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What are epiphytic plants?',
+                options: [
+                    'Plants that live on the forest floor',
+                    'Plants that grow on other plants or trees',
+                    'Plants that have adapted to desert climates',
+                    'Plants that grow underwater'
+                ],
+                answer: 'Plants that grow on other plants or trees'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What is the primary factor that causes the rapid decomposition of organic matter in rainforests?',
+                options: [
+                    'Lack of rainfall',
+                    'High pressure systems',
+                    'High temperatures and humidity',
+                    'Lack of sunlight'
+                ],
+                answer: 'High temperatures and humidity'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Which of the following is NOT a characteristic of an area of hot desert?',
+                options: ['High pressure', 'Descending air', 'Rising air', 'Very little precipitation'],
+                answer: 'Rising air'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What is the name of the pressure zone where rising air and rainfall are found at the equator?',
+                options: ['Tropical High Pressure', 'Inter-tropical Convergence Zone (ITCZ)', 'Subtropical Low Pressure', 'Equatorial Doldrums'],
+                answer: 'Inter-tropical Convergence Zone (ITCZ)'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What type of rock is commonly found in hot deserts?',
+                options: ['Bare rock', 'Sedimentary rock', 'Igneous rock', 'Metamorphic rock'],
+                answer: 'Bare rock'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What is a feature of vegetation in hot deserts?',
+                options: ['Lush and dense', 'Sparse and scattered', 'Broad-leaved', 'Evergreen'],
+                answer: 'Sparse and scattered'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Which of the following describes the roots of many desert plants?',
+                options: ['Shallow and spreading', 'Buttress roots', 'Long roots to reach groundwater', 'Aerial roots'],
+                answer: 'Long roots to reach groundwater'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Why do deserts have few clouds during the day?',
+                options: ['Low pressure', 'Solar radiation is blocked', 'Descending air', 'High humidity'],
+                answer: 'Descending air'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What is the term for the process of water loss from plants?',
+                options: ['Evaporation', 'Precipitation', 'Condensation', 'Evapotranspiration'],
+                answer: 'Evapotranspiration'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'In a desert, why do temperatures drop dramatically at night?',
+                options: ['The sun is not out', 'Clouds block heat from escaping', 'No clouds to trap the heat', 'Winds bring cold air'],
+                answer: 'No clouds to trap the heat'
+            },
+
+            // New questions from images (Fig. 1 and Photograph A)
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Based on Fig. 1, what is the approximate annual temperature range for the Coachella Valley?',
+                options: ['Around 10°C', 'Around 20°C', 'Around 30°C', 'Around 40°C'],
+                answer: 'Around 20°C'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Based on Fig. 1, which month has the highest average temperature?',
+                options: ['January', 'April', 'July', 'October'],
+                answer: 'July'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Based on Fig. 1, which months receive the least amount of precipitation?',
+                options: ['December and January', 'June and July', 'August and September', 'February and March'],
+                answer: 'June and July'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'How does precipitation in the Coachella Valley relate to temperature, based on Fig. 1?',
+                options: ['They are directly related', 'They are inversely related', 'They are unrelated', 'Precipitation is constant'],
+                answer: 'They are inversely related'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Based on Photograph A, what is a feature of the terrain?',
+                options: ['Swampy land', 'Dry valleys or wadis', 'Lush green fields', 'Glaciated valleys'],
+                answer: 'Dry valleys or wadis'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'The hills in Photograph A have:',
+                options: ['Gentle slopes', 'Steeply sloping sides', 'Rounded tops', 'Flat plateaus'],
+                answer: 'Steeply sloping sides'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What type of ground material is visible in the foreground of Photograph A?',
+                options: ['Fertile topsoil', 'Bare rock and gravels', 'Thick organic matter', 'Sandy loam'],
+                answer: 'Bare rock and gravels'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'The plants in Photograph A appear to be:',
+                options: ['Clustered together', 'Dense with a lot of foliage', 'Non-existent', 'Sparse and scattered'],
+                answer: 'Sparse and scattered'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'What does Photograph A show?',
+                options: ['A rainforest', 'An area of hot desert', 'A coastal beach', 'A mountain range'],
+                answer: 'An area of hot desert'
+            },
+            {
+                type: 'mcq',
+                difficulty: 'easy',
+                question: 'Based on Photograph A, what is a feature of the drainage system?',
+                options: ['Flowing rivers', 'Dry riverbeds', 'Large lakes', 'Swamps'],
+                answer: 'Dry riverbeds'
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isAnswerShown = false;
+        let selectedConnectItems = [];
+        let shuffledQuestions = [];
+
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const questionScreen = document.getElementById('question-screen');
+        const endScreen = document.getElementById('end-screen');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const questionCard = document.getElementById('question-card');
+        const questionContent = document.getElementById('question-content');
+        const optionsContainer = document.getElementById('options-container');
+        const flashcardAnswer = document.getElementById('flashcard-answer');
+        const connectDotsContainer = document.getElementById('connect-dots-container');
+        const flashcardButtons = document.getElementById('flashcard-buttons');
+        const showAnswerBtn = document.getElementById('show-answer-btn');
+        const nextFlashcardBtn = document.getElementById('next-flashcard-btn');
+        const feedback = document.getElementById('feedback');
+        const scoreElement = document.getElementById('score');
+        const questionCounter = document.getElementById('question-counter');
+        const finalScoreElement = document.getElementById('final-score');
+
+        // Utility function to show a custom message box
+        function showMessage(message, type = 'info') {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            const box = document.createElement('div');
+            box.className = 'message-box fade-in';
+            box.innerHTML = `
+                <h3 class="text-xl font-bold mb-4">${message}</h3>
+                <button class="btn btn-primary close-btn">OK</button>
+            `;
+            document.body.appendChild(overlay);
+            document.body.appendChild(box);
+            box.querySelector('.close-btn').onclick = () => {
+                document.body.removeChild(overlay);
+                document.body.removeChild(box);
+            };
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function startGame() {
+            shuffledQuestions = shuffleArray([...questions]).slice(0, 20);
+            currentQuestionIndex = 0;
+            score = 0;
+            scoreElement.textContent = `Score: ${score}`;
+            welcomeScreen.classList.add('hidden');
+            questionScreen.classList.remove('hidden');
+            endScreen.classList.add('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (currentQuestionIndex >= shuffledQuestions.length) {
+                showEndScreen();
+                return;
+            }
+
+            const currentQuestion = shuffledQuestions[currentQuestionIndex];
+            questionCounter.textContent = `Question: ${currentQuestionIndex + 1}/${shuffledQuestions.length}`;
+            questionContent.innerHTML = currentQuestion.question;
+            optionsContainer.innerHTML = '';
+            flashcardAnswer.classList.add('hidden');
+            connectDotsContainer.classList.add('hidden');
+            flashcardButtons.classList.add('hidden');
+            feedback.textContent = '';
+            isAnswerShown = false;
+            selectedConnectItems = [];
+            
+            // Clear all previous highlights
+            connectDotsContainer.querySelectorAll('.connect-item').forEach(item => {
+                item.classList.remove('selected', 'correct', 'incorrect');
+            });
+
+            switch (currentQuestion.type) {
+                case 'mcq':
+                    renderMCQ(currentQuestion);
+                    break;
+                case 'flashcard':
+                    renderFlashcard(currentQuestion);
+                    break;
+                case 'connect':
+                    renderConnect(currentQuestion);
+                    break;
+            }
+        }
+
+        function renderMCQ(question) {
+            optionsContainer.classList.remove('hidden');
+            const shuffledOptions = shuffleArray([...question.options]);
+            shuffledOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'btn btn-secondary';
+                button.onclick = () => checkMCQAnswer(option, question.answer, button);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function checkMCQAnswer(selectedOption, correctAnswer, button) {
+            if (isAnswerShown) return;
+            isAnswerShown = true;
+            
+            if (selectedOption === correctAnswer) {
+                score++;
+                scoreElement.textContent = `Score: ${score}`;
+                feedback.textContent = 'Correct!';
+                feedback.classList.remove('text-red-600');
+                feedback.classList.add('text-green-600');
+                button.classList.remove('btn-secondary');
+                button.classList.add('bg-green-500', 'text-white');
+            } else {
+                feedback.textContent = `Incorrect. The correct answer was: ${correctAnswer}`;
+                feedback.classList.remove('text-green-600');
+                feedback.classList.add('text-red-600');
+                button.classList.remove('btn-secondary');
+                button.classList.add('bg-red-500', 'text-white');
+                // Find and highlight correct answer
+                const correctButton = Array.from(optionsContainer.children).find(btn => btn.textContent === correctAnswer);
+                correctButton.classList.remove('btn-secondary');
+                correctButton.classList.add('bg-green-500', 'text-white');
+            }
+            
+            // Disable all buttons
+            Array.from(optionsContainer.children).forEach(btn => btn.disabled = true);
+            
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadQuestion();
+            }, 2000);
+        }
+
+        function renderFlashcard(question) {
+            flashcardButtons.classList.remove('hidden');
+            showAnswerBtn.classList.remove('hidden');
+            nextFlashcardBtn.classList.add('hidden');
+            flashcardAnswer.textContent = question.answer;
+
+            showAnswerBtn.onclick = () => {
+                flashcardAnswer.classList.remove('hidden');
+                showAnswerBtn.classList.add('hidden');
+                nextFlashcardBtn.classList.remove('hidden');
+            };
+            nextFlashcardBtn.onclick = () => {
+                currentQuestionIndex++;
+                loadQuestion();
+            };
+        }
+        
+        function renderConnect(question) {
+            connectDotsContainer.classList.remove('hidden');
+            
+            const leftItems = shuffleArray(Object.keys(question.pairs));
+            const rightItems = shuffleArray(Object.values(question.pairs));
+            
+            connectDotsContainer.innerHTML = '';
+            
+            leftItems.forEach(item => {
+                const div = document.createElement('div');
+                div.textContent = item;
+                div.className = 'connect-item';
+                div.dataset.value = item;
+                div.dataset.type = 'left';
+                div.onclick = () => handleConnectClick(div);
+                connectDotsContainer.appendChild(div);
+            });
+
+            rightItems.forEach(item => {
+                const div = document.createElement('div');
+                div.textContent = item;
+                div.className = 'connect-item';
+                div.dataset.value = item;
+                div.dataset.type = 'right';
+                div.onclick = () => handleConnectClick(div);
+                connectDotsContainer.appendChild(div);
+            });
+        }
+        
+        function handleConnectClick(element) {
+            if (isAnswerShown) return;
+
+            element.classList.toggle('selected');
+            const index = selectedConnectItems.indexOf(element);
+            if (index > -1) {
+                selectedConnectItems.splice(index, 1);
+            } else {
+                selectedConnectItems.push(element);
+            }
+
+            if (selectedConnectItems.length === 2) {
+                const [item1, item2] = selectedConnectItems;
+                const pair = item1.dataset.type === 'left' ? [item1, item2] : [item2, item1];
+                const [left, right] = pair;
+                
+                if (left.dataset.type === 'left' && right.dataset.type === 'right') {
+                    const currentQuestion = shuffledQuestions[currentQuestionIndex];
+                    if (currentQuestion.pairs[left.dataset.value] === right.dataset.value) {
+                        left.classList.remove('selected');
+                        right.classList.remove('selected');
+                        left.classList.add('correct');
+                        right.classList.add('correct');
+                        score++;
+                        scoreElement.textContent = `Score: ${score}`;
+                        feedback.textContent = 'Correct Pair!';
+                        feedback.classList.remove('text-red-600');
+                        feedback.classList.add('text-green-600');
+                        selectedConnectItems = [];
+                        
+                        const allCorrect = Array.from(connectDotsContainer.children).every(item => item.classList.contains('correct'));
+                        if (allCorrect) {
+                            setTimeout(() => {
+                                currentQuestionIndex++;
+                                loadQuestion();
+                            }, 1000);
+                        }
+                    } else {
+                        left.classList.remove('selected');
+                        right.classList.remove('selected');
+                        left.classList.add('incorrect');
+                        right.classList.add('incorrect');
+                        feedback.textContent = 'Incorrect Pair. Try again!';
+                        feedback.classList.remove('text-green-600');
+                        feedback.classList.add('text-red-600');
+                        setTimeout(() => {
+                            left.classList.remove('incorrect');
+                            right.classList.remove('incorrect');
+                            selectedConnectItems = [];
+                        }, 1000);
+                    }
+                } else {
+                    // Two items of the same type selected
+                    setTimeout(() => {
+                        item1.classList.remove('selected');
+                        item2.classList.remove('selected');
+                        selectedConnectItems = [];
+                    }, 500);
+                }
+            }
+        }
+
+        function showEndScreen() {
+            questionScreen.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+            finalScoreElement.textContent = `You answered ${score} out of ${shuffledQuestions.length} questions correctly.`;
+        }
+
+        startGameBtn.addEventListener('click', startGame);
+        restartGameBtn.addEventListener('click', startGame);
+    </script>
+</body>
+</html>
